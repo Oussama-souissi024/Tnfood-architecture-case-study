@@ -770,8 +770,36 @@ Les documents suivants approfondissent les aspects spécifiques de l'architectur
 | Ressource | Lien |
 |---|---|
 | **Site web** | [tnfood.tn](https://tnfood.tn) |
-| **Auteur** | Jouini Hamdi — Full-Stack Engineer |
 | **Contact** | resto.tn.contact@gmail.com |
+
+### 👥 Équipe
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="./oussama.jpg" width="150" height="150" style="border-radius: 50%;" alt="Souissi Oussama" /><br />
+      <strong>Souissi Oussama</strong><br />
+      <sub>Full-Stack Engineer</sub><br /><br />
+      <a href="https://www.linkedin.com/in/oussama-souissi/">
+        <img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
+      </a>
+      <a href="https://github.com/oussa">
+        <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
+      </a>
+    </td>
+    <td align="center" width="50%">
+      <img src="./hamdi.png" width="150" height="150" style="border-radius: 50%;" alt="Jouini Hamdi" /><br />
+      <strong>Jouini Hamdi</strong><br />
+      <sub>Full-Stack Engineer</sub><br /><br />
+      <a href="https://www.linkedin.com/in/hamdi-jouini-7aa47828b/">
+        <img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
+      </a>
+      <a href="https://github.com/JHAMDI1">
+        <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
+      </a>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -791,5 +819,5 @@ Ce dépôt est publié à des fins de **documentation technique et de partage de
 </p>
 
 <p align="center">
-  <sub>© 2025–2026 TNFood — Tous droits réservés. Dépôt public maintenu par Jouini Hamdi.</sub>
+  <sub>© 2025–2026 TNFood — Tous droits réservés. Maintenu par Souissi Oussama & Jouini Hamdi.</sub>
 </p>

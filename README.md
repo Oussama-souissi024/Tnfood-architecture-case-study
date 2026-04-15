@@ -1192,10 +1192,10 @@ Les documents suivants approfondissent les aspects spécifiques de l'architectur
 
 ### 👥 Équipe
 
-| Développeur | Rôle | LinkedIn | GitHub |
-|---|---|---|---|
-| **Souissi Oussama** | Full-Stack Engineer | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/oussama-souissi/) | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/oussa) |
-| **Jouini Hamdi** | Full-Stack Engineer | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/hamdi-jouini-7aa47828b/) | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/JHAMDI1) |
+| Profil | Développeur | Rôle | LinkedIn | GitHub |
+|:---:|---|---|---|---|
+| <img src="./oussama.png" width="60" style="border-radius: 50%" /> | **Souissi Oussama** | Full-Stack Engineer | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/oussama-souissi/) | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/oussa) |
+| <img src="./hamdi.png" width="60" style="border-radius: 50%" /> | **Jouini Hamdi** | Full-Stack Engineer | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/hamdi-jouini-7aa47828b/) | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/JHAMDI1) |
 
 ---
 

@@ -34,6 +34,8 @@
 - [Approche Row-Level Security (RLS)](#-approche-row-level-security-rls)
 - [Architecture haut niveau](#-architecture-haut-niveau)
 - [Capacités clés de la plateforme](#-capacités-clés-de-la-plateforme)
+- [Rôles utilisateur et permissions](#-rôles-utilisateur-et-permissions)
+- [Paiement par Ticket Restaurant](#-paiement-par-ticket-restaurant)
 - [Focus ingénierie](#-focus-ingénierie)
 - [Notes d'architecture](#-notes-darchitecture)
 - [Périmètre du dépôt](#-périmètre-du-dépôt)
@@ -440,6 +442,7 @@ erDiagram
         json theme_config
         json opening_hours
         json delivery_zones
+        json ticket_resto_config
     }
 
     User {
@@ -455,6 +458,8 @@ erDiagram
         string order_number
         enum type "DINE_IN-TAKEAWAY-DELIVERY"
         enum status "PENDING...DELIVERED"
+        string payment_method "CASH-TICKET_RESTO"
+        json ticket_resto_details
         string source "POS ou ONLINE"
         string idempotency_token
     }
@@ -590,6 +595,106 @@ stateDiagram-v2
 
 Chaque transition est **validée côté backend** : seules les transitions autorisées sont acceptées. L'historique complet des changements de statut est conservé dans `order_status_history` avec horodatage et identifiant de l'opérateur.
 
+### 🚚 Flux de livraison — Traitement de commande multi-acteur
+
+Le parcours d'une commande de type **DELIVERY** implique trois acteurs qui interagissent en temps réel via le même backend. Chaque acteur dispose de sa propre interface adaptée à son rôle.
+
+#### Vue d'ensemble — Qui fait quoi ?
+
+```mermaid
+sequenceDiagram
+    actor Client as 🛒 Client Web
+    participant API as 🛠️ Backend API
+    actor Dashboard as 📊 Dashboard Admin
+    actor Driver as 🚴 Livreur
+
+    Note over Client: Passe commande<br/>en ligne (Delivery)
+    Client->>API: POST /orders<br/>{type: DELIVERY, paymentMethod, ticketRestoDetails}
+    API-->>Dashboard: 🔔 Notification WebSocket<br/>Nouvelle commande !
+    API-->>Client: Commande créée<br/>Statut: PENDING
+
+    Note over Dashboard: Voit la commande<br/>dans la liste
+    Dashboard->>API: PATCH /orders/:id<br/>{status: CONFIRMED}
+    API-->>Client: 🔔 Statut mis à jour<br/>→ CONFIRMÉE
+
+    Dashboard->>API: PATCH /orders/:id<br/>{status: PREPARING}
+    API-->>Client: 🔔 Statut mis à jour<br/>→ EN PRÉPARATION
+
+    Dashboard->>API: PATCH /orders/:id<br/>{status: READY}
+    API-->>Client: 🔔 Statut mis à jour<br/>→ PRÊTE
+
+    Note over Dashboard: Assigne un livreur
+    Dashboard->>API: PATCH /orders/:id/assign<br/>{driverId: "..."}
+    API-->>Driver: 🔔 Notification WebSocket<br/>Livraison assignée !
+
+    Dashboard->>API: PATCH /orders/:id<br/>{status: DELIVERING}
+    API-->>Client: 🔔 Statut mis à jour<br/>→ EN LIVRAISON
+    API-->>Driver: 🔔 Statut mis à jour
+
+    Note over Driver: Voit l'adresse, le client,<br/>le mode de paiement<br/>et le montant à collecter
+    Note over Driver: Livre au client<br/>Collecte paiement<br/>(espèces et/ou ticket)
+    Driver->>API: PATCH /orders/:id<br/>{status: DELIVERED}
+    API-->>Client: 🔔 Statut mis à jour<br/>→ LIVRÉE ✅
+    API-->>Dashboard: 🔔 Commande terminée
+    
+    Note over Dashboard: Confirme le paiement<br/>du livreur
+    Dashboard->>API: POST /deliveries/:id/confirm-payment
+```
+
+#### 📊 Côté Dashboard Admin (Owner / Admin)
+
+Le dashboard affiche toutes les commandes en temps réel. Pour une commande de type **Delivery**, l'admin suit ce flux :
+
+| Étape | Action admin | Bouton affiché |
+|---|---|---|
+| **1. Nouvelle commande** | La commande apparaît avec une notification sonore/visuelle | **Accepter** / **Refuser** |
+| **2. Confirmée** | L'admin accepte la commande | **Lancer la Préparation** |
+| **3. En préparation** | La cuisine prépare les plats | **Commande Prête** |
+| **4. Prête** | L'admin assigne un livreur via le sélecteur de livreurs | **Parti en livraison** |
+| **5. En livraison** | Le livreur est en route — l'admin voit le statut en temps réel | — (attend le livreur) |
+| **6. Livrée** | Le livreur a confirmé la livraison | **Confirmer le Paiement** |
+
+À chaque étape, les **détails de paiement** sont visibles dans le panneau latéral de la commande :
+- Mode de paiement (💵 Espèces ou 🎫 Ticket Restaurant)
+- Montant du ticket et reste en espèces à récupérer si applicable
+
+<!-- TODO: Ajouter capture d'écran du drawer commande côté admin avec boutons d'action -->
+
+#### 🚴 Côté Livreur (Driver)
+
+Le livreur accède à une **interface dédiée et simplifiée** (`/deliveries`) qui affiche uniquement ses commandes assignées :
+
+| Information visible | Détail |
+|---|---|
+| **Numéro de commande** | Ex: `#ORD-20260410-183812-D9MP` |
+| **Adresse de livraison** | Adresse complète avec lien cliquable |
+| **Client** | Nom + téléphone (cliquable pour appeler) |
+| **Notes de livraison** | Instructions spéciales du client |
+| **Total à collecter** | Montant affiché en gros |
+| **Mode de paiement** | Badge clair : `Espèces uniquement` ou `Ticket + X DT` |
+| **Détails ticket** | Si Ticket Restaurant : nom du ticket, valeur, et espèces complémentaires à collecter |
+
+Le livreur dispose d'un seul bouton d'action : **« Livré ✅ »** qui passe la commande en statut `DELIVERED`.
+
+<!-- TODO: Ajouter capture d'écran de l'interface livreur avec une commande active -->
+
+#### 🛒 Côté Client Web
+
+Le client suit sa commande en temps réel via une **barre de progression visuelle** qui affiche les étapes :
+
+```
+En attente → Confirmée → Préparation → Prête → En livraison → Livrée ✅
+```
+
+Chaque étape est représentée par un **cercle animé** avec une icône contextuelle. L'étape active est mise en surbrillance avec le label « En route vers vous » pendant la phase de livraison.
+
+Le client voit également :
+- Le **récapitulatif de sa commande** (articles, prix, sous-total, TVA, total)
+- Le **mode de paiement** choisi (💵 Espèces ou 🎫 Ticket Resto)
+- La possibilité de **télécharger son reçu** en PDF
+
+<!-- TODO: Ajouter capture d'écran du suivi commande client (barre de progression) -->
+
 ### 📊 Analytique et BI
 
 - **Restaurant-level** : heures de pointe, rétention client (nouveaux vs récurrents), tendances revenus/AOV, performance produits
@@ -641,7 +746,8 @@ flowchart LR
 
 - **Sessions de caisse** avec ouverture/fermeture par utilisateur
 - **Suivi des revenus** par session, agrégation automatique
-- **Tickets restaurant** : gestion des paiements par ticket avec système de crédit et codes
+- **Ventilation Espèces / Tickets** : le résumé de session affiche séparément le total encaissé en espèces et la valeur totale des tickets restaurant collectés
+- **Badge par commande** : chaque commande de la session indique clairement son mode de paiement (💵 Espèces ou 🎫 Ticket Restaurant)
 
 ### 👥 Gestion client
 
@@ -649,6 +755,172 @@ flowchart LR
 - **Find-or-create** : création automatique du profil client à la première commande
 - **Tickets support** : système de support intégré
 - **Reçus PDF** : génération et téléchargement de reçus
+
+---
+
+## 👤 Rôles utilisateur et permissions
+
+TNFood implémente une hiérarchie de rôles stricte au sein de chaque restaurant (tenant). Chaque rôle détermine les fonctionnalités accessibles et les actions autorisées.
+
+### Hiérarchie des rôles
+
+```mermaid
+graph TD
+    SA["🛡️ SUPERADMIN\nOpérateur plateforme"]
+    OW["👑 OWNER\nPropriétaire du restaurant"]
+    AD["🔧 ADMIN\nGérant / Manager"]
+    ST["🍳 STAFF\nÉquipe en salle / cuisine"]
+    DR["🚴 DRIVER\nLivreur"]
+
+    SA --> OW
+    OW --> AD
+    AD --> ST
+    AD --> DR
+
+    style SA fill:#7c3aed,stroke:#a78bfa,color:#fff
+    style OW fill:#2563eb,stroke:#60a5fa,color:#fff
+    style AD fill:#0891b2,stroke:#22d3ee,color:#fff
+    style ST fill:#16a34a,stroke:#4ade80,color:#fff
+    style DR fill:#ea580c,stroke:#fb923c,color:#fff
+```
+
+### Matrice des permissions
+
+| Fonctionnalité | OWNER | ADMIN | STAFF | DRIVER |
+|---|:---:|:---:|:---:|:---:|
+| **Dashboard & Analytique** | ✅ | ✅ | ❌ | ❌ |
+| **Gestion du menu** (produits, catégories, suppléments) | ✅ | ✅ | ❌ | ❌ |
+| **Gestion des commandes** (accepter, préparer, marquer prêt) | ✅ | ✅ | ✅ | ❌ |
+| **POS / Caisse** (prise de commande en salle) | ✅ | ✅ | ✅ | ❌ |
+| **Ouverture / Fermeture de caisse** | ✅ | ✅ | ❌ | ❌ |
+| **Paramètres du restaurant** (infos, logo, thème) | ✅ | ✅ | ❌ | ❌ |
+| **Configuration Ticket Restaurant** (nom, marge) | ✅ | ✅ | ❌ | ❌ |
+| **Zones de livraison** | ✅ | ✅ | ❌ | ❌ |
+| **Gestion des utilisateurs** (créer, modifier, supprimer) | ✅ | ❌ | ❌ | ❌ |
+| **Assignation de livreur** | ✅ | ✅ | ❌ | ❌ |
+| **Voir ses livraisons** | ❌ | ❌ | ❌ | ✅ |
+| **Marquer une livraison comme livrée** | ❌ | ❌ | ❌ | ✅ |
+| **Voir les détails de paiement** (mode + montant à collecter) | ✅ | ✅ | ✅ | ✅ |
+| **Confirmer un paiement** (driver paid) | ✅ | ✅ | ❌ | ❌ |
+| **Gestion des contacts / clients** | ✅ | ✅ | ❌ | ❌ |
+
+### Détail des rôles
+
+#### 👑 OWNER — Propriétaire
+
+Accès total à toutes les fonctionnalités du restaurant. Le rôle OWNER est créé automatiquement lors de l'onboarding du restaurant sur la plateforme. C'est le seul rôle capable de gérer les utilisateurs (créer des comptes ADMIN, STAFF, DRIVER).
+
+#### 🔧 ADMIN — Manager
+
+Mêmes permissions que le OWNER sauf la gestion des utilisateurs. Idéal pour un gérant de confiance qui gère les opérations quotidiennes : menu, commandes, caisse, livraisons et paramètres.
+
+#### 🍳 STAFF — Équipe
+
+Accès limité aux opérations de terrain : prise de commande via le POS, gestion du flux de commandes (accepter → préparer → prêt). Le STAFF n'a pas accès au dashboard analytique, aux paramètres, ni à la gestion de la caisse.
+
+#### 🚴 DRIVER — Livreur
+
+Interface dédiée aux livraisons. Le livreur voit uniquement ses commandes assignées avec :
+- L'**adresse de livraison** et les **coordonnées du client** (nom, téléphone cliquable)
+- Le **mode de paiement** du client (Espèces ou Ticket Restaurant)
+- Le **montant exact à collecter** : soit le total en espèces, soit la combinaison ticket + reste en espèces
+- Le bouton **« Livré »** pour confirmer la livraison
+
+<!-- TODO: Ajouter captures d'écran de chaque interface par rôle -->
+
+---
+
+## 🎫 Paiement par Ticket Restaurant
+
+TNFood intègre un système de paiement par **Ticket Restaurant** adapté au marché tunisien (Sodexo, Pluxee, etc.). Ce système permet aux clients de payer partiellement ou totalement avec des tickets, tout en assurant la traçabilité complète pour le restaurateur et le livreur.
+
+### Principe de fonctionnement
+
+Le restaurateur configure les types de tickets acceptés dans ses paramètres (ex : « Sodexo » avec une marge de 10%). La **marge** représente la commission prélevée par la société de tickets : un ticket de 20 DT avec une marge de 10% ne vaut que **18 DT** pour le restaurateur.
+
+Le client choisit son mode de paiement au checkout et saisit librement le montant de son ticket. Le système calcule automatiquement :
+- La **valeur effective** du ticket après déduction de la marge
+- Le **reste à payer en espèces** si le ticket ne couvre pas la totalité
+
+### Flux complet — De la configuration à la collecte
+
+```mermaid
+flowchart TD
+    subgraph Admin["⚙️ Configuration Admin"]
+        A1["Owner / Admin ouvre\nParamètres > Tickets Restaurant"] --> A2["Ajoute un type de ticket\nEx: Sodexo, marge 10%"]
+        A2 --> A3["Sauvegarde la config\nPATCH /restaurants/current"]
+        A3 --> A4["ticketRestoConfig stocké\nen JSON dans PostgreSQL"]
+    end
+
+    subgraph Client["🛒 Commande Client Web"]
+        B1["Client sélectionne\nses articles"] --> B2["Page Checkout"]
+        B2 --> B3{"Mode de paiement ?"}
+        B3 -->|"💵 Espèces"| B4["Paiement intégral\nen espèces"]
+        B3 -->|"🎫 Ticket Restaurant"| B5["Sélectionne le type\nde ticket"]
+        B5 --> B6["Saisit le montant\ndu ticket librement"]
+        B6 --> B7["Calcul automatique :\nValeur effective\n+ Reste en espèces"]
+        B7 --> B8["Confirme la commande"]
+        B4 --> B8
+    end
+
+    subgraph Backend["🛠️ Backend API"]
+        B8 --> C1["POST /orders"]
+        C1 --> C2["paymentMethod = TICKET_RESTO\nticketRestoDetails = JSON"]
+        C2 --> C3["Commande créée\nwith ticketRestoDetails"]
+    end
+
+    subgraph Driver["🚴 Vue Livreur"]
+        C3 --> D1["Livreur voit la commande\nassignée"]
+        D1 --> D2["Détails du paiement :\n🎫 Ticket à récupérer\n💵 Espèces à récupérer"]
+        D2 --> D3["Livreur collecte le ticket\n+ le complément espèces"]
+        D3 --> D4["Marque comme Livré"]
+    end
+
+    subgraph Caisse["💰 Caisse du Jour"]
+        D4 --> E1["Résumé session :\nTotal Espèces | Total Tickets"]
+    end
+
+    style Admin fill:#0f172a,stroke:#3b82f6,color:#e2e8f0
+    style Client fill:#0f172a,stroke:#10b981,color:#e2e8f0
+    style Backend fill:#0f172a,stroke:#f59e0b,color:#e2e8f0
+    style Driver fill:#0f172a,stroke:#ef4444,color:#e2e8f0
+    style Caisse fill:#0f172a,stroke:#a855f7,color:#e2e8f0
+```
+
+### Exemple concret
+
+| Étape | Détail |
+|---|---|
+| **Config admin** | Ticket « Sodexo », marge 10% |
+| **Client commande** | Total = 36 DT, paie avec ticket de 20 DT |
+| **Calcul** | Valeur effective = 20 × (1 − 0.10) = **18 DT** |
+| **Reste espèces** | 36 − 18 = **18 DT** |
+| **Livreur collecte** | 🎫 Ticket Sodexo (20 DT) + 💵 18 DT en espèces |
+| **Caisse** | +18 DT espèces, +20 DT tickets |
+
+### Modèle de données
+
+Les données Ticket Restaurant sont stockées en JSONB dans PostgreSQL :
+
+- **`Restaurant.ticket_resto_config`** — Configuration des tickets acceptés :
+  ```json
+  [
+    { "id": "1", "name": "Sodexo", "margin": 10, "isActive": true },
+    { "id": "2", "name": "Pluxee", "margin": 12, "isActive": false }
+  ]
+  ```
+- **`Order.ticket_resto_details`** — Détails du paiement par ticket pour chaque commande :
+  ```json
+  {
+    "ticketName": "Sodexo",
+    "ticketValue": 20,
+    "margin": 10,
+    "effectiveValue": 18,
+    "cashRemainder": 18
+  }
+  ```
+
+<!-- TODO: Ajouter captures d'écran : config admin, checkout client, vue livreur, résumé caisse -->
 
 ---
 
@@ -774,32 +1046,10 @@ Les documents suivants approfondissent les aspects spécifiques de l'architectur
 
 ### 👥 Équipe
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="./oussama.jpg" width="150" height="150" style="border-radius: 50%;" alt="Souissi Oussama" /><br />
-      <strong>Souissi Oussama</strong><br />
-      <sub>Full-Stack Engineer</sub><br /><br />
-      <a href="https://www.linkedin.com/in/oussama-souissi/">
-        <img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
-      </a>
-      <a href="https://github.com/oussa">
-        <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
-      </a>
-    </td>
-    <td align="center" width="50%">
-      <img src="./hamdi.png" width="150" height="150" style="border-radius: 50%;" alt="Jouini Hamdi" /><br />
-      <strong>Jouini Hamdi</strong><br />
-      <sub>Full-Stack Engineer</sub><br /><br />
-      <a href="https://www.linkedin.com/in/hamdi-jouini-7aa47828b/">
-        <img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
-      </a>
-      <a href="https://github.com/JHAMDI1">
-        <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
-      </a>
-    </td>
-  </tr>
-</table>
+| Développeur | Rôle | LinkedIn | GitHub |
+|---|---|---|---|
+| **Souissi Oussama** | Full-Stack Engineer | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/oussama-souissi/) | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/oussa) |
+| **Jouini Hamdi** | Full-Stack Engineer | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/hamdi-jouini-7aa47828b/) | [![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/JHAMDI1) |
 
 ---
 

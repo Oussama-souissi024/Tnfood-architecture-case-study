@@ -658,7 +658,40 @@ Le dashboard affiche toutes les commandes en temps réel. Pour une commande de t
 - Mode de paiement (💵 Espèces ou 🎫 Ticket Restaurant)
 - Montant du ticket et reste en espèces à récupérer si applicable
 
-<!-- TODO: Ajouter capture d'écran du drawer commande côté admin avec boutons d'action -->
+<details>
+<summary>📸 Voir les captures d'écran — Flux commande côté Admin</summary>
+
+#### Nouvelle commande reçue — Accepter ou Refuser
+
+![Nouvelle commande avec boutons Accepter/Refuser](./flux-nouvelle-commande.png)
+
+*Le dashboard affiche la nouvelle commande en temps réel avec les boutons **Accepter** et **Refuser**, ainsi que le détail complet (statut, type, client, adresse de livraison).*
+
+#### Commande confirmée — Lancer la préparation & Assigner un livreur
+
+![Confirmation et assignation livreur](./image-fusionner-1-pour-montrer-le-changement-de-statue-chez-le-client-aussi.png)
+
+*À gauche : le suivi côté client montre le statut "Confirmée". À droite : le dashboard admin affiche le sélecteur de livreur et le bouton "Lancer la préparation".*
+
+#### En préparation → Commande prête
+
+![Préparation en cours côté client et admin](./image-futionner-2.png)
+
+*Vue simultanée client (barre de progression "En cuisine") et admin (bouton "Commande prête" et détails de la commande).*
+
+#### Commande prête — Assignation du livreur
+
+![Assignation du livreur](./assigner-livreur.png)
+
+*Le sélecteur de livreur permet à l'admin de choisir parmi les livreurs disponibles. Le bouton passe à "Assigner un livreur d'abord" tant qu'aucun livreur n'est sélectionné.*
+
+#### En livraison — Suivi en temps réel
+
+![En livraison côté client et admin](./image-futionner-3.png)
+
+*Le client voit "En route vers vous" dans sa barre de progression. Le dashboard admin affiche le livreur assigné et le détail des articles.*
+
+</details>
 
 #### 🚴 Côté Livreur (Driver)
 
@@ -676,7 +709,14 @@ Le livreur accède à une **interface dédiée et simplifiée** (`/deliveries`) 
 
 Le livreur dispose d'un seul bouton d'action : **« Livré ✅ »** qui passe la commande en statut `DELIVERED`.
 
-<!-- TODO: Ajouter capture d'écran de l'interface livreur avec une commande active -->
+<details>
+<summary>📸 Voir la capture d'écran — Interface livreur</summary>
+
+![Interface livreur avec commande active](./Notification-compte-livreur.png)
+
+*L'interface livreur (`admin.tnfood.tn/deliveries`) affiche la commande assignée avec l'adresse de livraison, le nom et téléphone du client (cliquable), le montant à collecter (18,5 DT), le mode de paiement (Espèces uniquement) et le bouton **Livré ✅**.*
+
+</details>
 
 #### 🛒 Côté Client Web
 
@@ -693,7 +733,22 @@ Le client voit également :
 - Le **mode de paiement** choisi (💵 Espèces ou 🎫 Ticket Resto)
 - La possibilité de **télécharger son reçu** en PDF
 
-<!-- TODO: Ajouter capture d'écran du suivi commande client (barre de progression) -->
+<details>
+<summary>📸 Voir les captures d'écran — Suivi commande client</summary>
+
+#### Commande en attente — Suivi initial
+
+![Suivi commande client - En attente](./confirmation-commande-en-ligne.png)
+
+*Le client voit sa commande avec le statut "En attente", la barre de progression visuelle, le récapitulatif des articles et le mode de paiement.*
+
+#### Commande en livraison — Suivi avec Ticket Restaurant
+
+![Suivi commande - En livraison avec Ticket Resto](./ancienne-commande.png)
+
+*Exemple d'une commande payée par Ticket Restaurant : la barre de progression montre "En route vers vous" et le mode de paiement affiche le badge 🎫 Ticket Resto.*
+
+</details>
 
 ### 📊 Analytique et BI
 
@@ -826,7 +881,7 @@ Interface dédiée aux livraisons. Le livreur voit uniquement ses commandes assi
 - Le **montant exact à collecter** : soit le total en espèces, soit la combinaison ticket + reste en espèces
 - Le bouton **« Livré »** pour confirmer la livraison
 
-<!-- TODO: Ajouter captures d'écran de chaque interface par rôle -->
+<!-- Les captures d'écran de chaque interface sont intégrées dans la section "Captures d'écran / Visuels" ci-dessous -->
 
 ---
 
@@ -920,7 +975,22 @@ Les données Ticket Restaurant sont stockées en JSONB dans PostgreSQL :
   }
   ```
 
-<!-- TODO: Ajouter captures d'écran : config admin, checkout client, vue livreur, résumé caisse -->
+<details>
+<summary>📸 Voir les captures d'écran — Paiement Ticket Restaurant</summary>
+
+#### Checkout client — Choix du mode de paiement
+
+![Checkout avec mode de paiement](./commande.png)
+
+*Page de finalisation de commande côté client : le client choisit entre 💵 Espèces et 🎫 Ticket Restaurant. Le résumé de commande affiche les articles, suppléments, sous-total, TVA et total.*
+
+#### Interface POS — Caisse
+
+![Interface caisse POS](./caisse.png)
+
+*L'interface caisse du dashboard admin affiche les catégories (Tacos, Malfouf, Chapati, Boisson), les produits avec prix, et le panier latéral pour la prise de commande en salle.*
+
+</details>
 
 ---
 
@@ -1011,15 +1081,91 @@ Le code source complet reste dans un dépôt privé. Ce dépôt public est maint
 
 ## 📸 Captures d'écran / Visuels
 
-> **Section réservée** — Des captures d'écran anonymisées des différentes interfaces (admin dashboard, client web, POS mobile, platform BI) seront ajoutées prochainement pour illustrer le résultat final de la plateforme.
+Voici un aperçu des différentes interfaces de la plateforme TNFood en production.
 
-<!--
-Ajouter ici les captures d'écran :
-- Dashboard admin (stats, graphiques)
-- Page menu client web (mobile + desktop)
-- Application POS mobile
-- Platform dashboard (BI, cohortes)
--->
+> **Note** : Les captures ci-dessous proviennent de l'environnement de production réel. Certaines données personnelles ont été masquées.
+
+### 🛒 Checkout client — Finalisation de commande
+
+![Page de checkout client web](./commande.png)
+
+*Le client final passe sa commande via le site web : formulaire d'informations, choix du type de commande (Sur place / À emporter / Livraison), mode de paiement (Espèces ou Ticket Restaurant), et résumé détaillé du panier.*
+
+---
+
+### 📊 Dashboard Admin — Gestion des commandes en temps réel
+
+![Flux nouvelle commande - Dashboard admin](./flux-nouvelle-commande.png)
+
+*Le dashboard affiche les commandes organisées par statut (En attente, En préparation). Le panneau latéral droit montre le détail complet d'une commande avec les boutons d'action **Accepter** / **Refuser**.*
+
+---
+
+### 🔄 Flux multi-acteur — Suivi simultané client & admin
+
+<details>
+<summary>Voir les 3 étapes du flux de commande (vues fusionnées client + admin)</summary>
+
+#### Étape 1 — Commande confirmée : début de préparation
+
+![Vue fusionnée - Confirmée](./image-fusionner-1-pour-montrer-le-changement-de-statue-chez-le-client-aussi.png)
+
+*À gauche : le client voit le statut passer à "Confirmée" dans sa barre de progression. À droite : le dashboard admin montre le sélecteur de livreur et le bouton "Lancer la préparation".*
+
+#### Étape 2 — En préparation : commande en cuisine
+
+![Vue fusionnée - En préparation](./image-futionner-2.png)
+
+*À gauche : le client voit "En cuisine" avec le détail de ses articles. À droite : l'admin voit le bouton "Commande prête" et peut imprimer le ticket.*
+
+#### Étape 3 — En livraison : en route vers le client
+
+![Vue fusionnée - En livraison](./image-futionner-3.png)
+
+*À gauche : le client voit "En route vers vous". À droite : l'admin voit le livreur assigné et le détail des articles avec suppléments.*
+
+</details>
+
+---
+
+### 🚴 Assignation de livreur
+
+![Assignation livreur](./assigner-livreur.png)
+
+*Lorsque la commande est prête, l'admin sélectionne un livreur disponible dans la liste déroulante. Le bouton indique "Assigner un livreur d'abord" tant que la sélection n'est pas faite.*
+
+---
+
+### 📦 Interface livreur — Livraison en cours
+
+![Interface livreur](./Notification-compte-livreur.png)
+
+*L'interface dédiée aux livreurs (`/deliveries`) affiche : adresse de livraison, nom et téléphone du client (cliquable), montant à collecter, mode de paiement et bouton **Livré ✅**.*
+
+---
+
+### 🧾 Suivi commande — Côté client
+
+| Commande en attente | Commande en livraison (Ticket Resto) |
+|---|---|
+| ![En attente](./confirmation-commande-en-ligne.png) | ![En livraison](./ancienne-commande.png) |
+| *Statut "En attente" avec barre de progression et récapitulatif.* | *Paiement par Ticket Resto avec barre de progression "En route vers vous".* |
+
+---
+
+### 📜 Historique des commandes — Côté client
+
+![Historique commandes client](./historique.png)
+
+*Le client retrouve l'ensemble de ses commandes passées avec : numéro de commande, date, statut (Livrée ✅ / Annulée ❌), mode de paiement (cash ou Ticket Resto) et montant total.*
+
+---
+
+### 🏪 Interface POS — Caisse
+
+![Interface caisse POS](./caisse.png)
+
+*L'interface caisse permet la prise de commande rapide en salle : catégories en haut, grille de produits avec prix, et panier latéral avec compteur d'articles et bouton Payer.*
 
 ---
 
